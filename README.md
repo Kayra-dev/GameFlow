@@ -144,62 +144,57 @@ psql -h localhost -p 5434 -U gameflow -d gameflow -f backend/scripts/clean-test-
 
 ## Yayına alma
 
-Veritabanı, API ve arayüz tek bir blueprint'ten (`render.yaml`) doğar.
+Uygulama iki parçaya ayrılır: **arayüz GitHub Pages'te**, **API ve veritabanı ayrı bir
+sunucuda**. Pages yalnızca statik dosya sunar; ASP.NET Core API'yi barındıramaz.
 
-> **Neden GitHub Pages değil?** Pages, ücretsiz planda yalnızca public depolarda
-> çalışır. Bu depo private olduğu için arayüz de Render'da yayınlanır.
+### Arayüz → GitHub Pages
 
-### 1. Depoyu GitHub'a gönderin
+Depo public olmalıdır: Pages, ücretsiz planda private depolarda çalışmaz.
+
+Yayın, derleme çıktısını `gh-pages` dalına gönderen bir scriptle yapılır:
 
 ```bash
-git push -u origin main
+cd frontend && VITE_API_BASE_URL=https://api-adresiniz ./scripts/deploy-pages.sh
 ```
 
-Render dağıtımı GitHub Actions kullanmaz; depoda workflow tanımı yoktur. Sonradan bir
-workflow eklerseniz, kullandığınız kişisel erişim token'ında **`workflow`** izni açık
-olmalıdır — değilse GitHub, workflow dosyası içeren push'u tamamen reddeder.
+Depo ayarlarında **Settings → Pages → Source: Deploy from a branch → `gh-pages` / `/`**
+seçili olmalıdır (bir kez).
 
-### 2. Blueprint'i oluşturun
+`VITE_API_BASE_URL` derleme anında pakete gömülür, çalışma anında okunmaz. API adresi
+değişirse arayüzün yeniden derlenip yayınlanması gerekir.
 
-Render → **New → Blueprint** → depoyu seçin. `render.yaml` üç servis tanımlar:
-`gameflow-db` (PostgreSQL), `gameflow-api` (Docker) ve `gameflow-web` (statik arayüz).
+Script neden GitHub Actions kullanmıyor: workflow dosyası göndermek, kullanılan kişisel
+erişim token'ında `workflow` izni ister. Bu yol yalnızca normal push yetkisiyle çalışır.
 
-`DATABASE_URL` ve `Jwt__Secret` otomatik üretilir. Panelden elle girilmesi gerekenler:
+### API + veritabanı → Render
 
-| Servis | Değişken | Değer |
-|---|---|---|
-| `gameflow-api` | `Seed__AdminEmail` | İlk yönetici e-postası |
-| `gameflow-api` | `Seed__AdminPassword` | İlk yönetici şifresi |
-| `gameflow-api` | `Cors__AllowedOrigins__0` | Arayüz adresi, örn. `https://gameflow-web.onrender.com` |
-| `gameflow-web` | `VITE_API_BASE_URL` | API adresi, örn. `https://gameflow-api.onrender.com` |
+`render.yaml`'daki `gameflow-api` ve `gameflow-db` servisleri kullanılır. Render →
+**New → Blueprint** → depoyu seçin. `DATABASE_URL` ve `Jwt__Secret` otomatik üretilir;
+panelden girilmesi gerekenler:
 
-Adresler ancak servisler oluşturulduktan sonra belli olur; ikisini de girip her iki
-servisi yeniden dağıtın. Render ortam değişkenlerinde metin birleştirmeyi desteklemediği
-için bu iki alan blueprint'ten otomatik bağlanamaz.
+| Değişken | Değer |
+|---|---|
+| `Seed__AdminEmail` | İlk yönetici e-postası |
+| `Seed__AdminPassword` | İlk yönetici şifresi |
+| `Cors__AllowedOrigins__0` | `https://<kullanici>.github.io` |
 
-Migration'lar uygulama açılışında otomatik uygulanır. API ayağa kalktığında
-`https://gameflow-api.onrender.com/health` adresi `200` dönmelidir.
+`Cors__AllowedOrigins__0` yalnızca **kaynak** (origin) olmalıdır: şema dahil, yol ve
+sondaki `/` olmadan. `https://kayra-dev.github.io/GameFlow/` yazılırsa tarayıcı bütün
+istekleri CORS nedeniyle engeller.
 
-### 3. Giriş yapın
+Migration'lar uygulama açılışında otomatik uygulanır. Servis ayağa kalktığında
+`/health` adresi `200` dönmelidir.
+
+Ücretsiz planda servisler hareketsizlik sonrası uykuya geçer (ilk istek 30–60 sn) ve
+ücretsiz PostgreSQL örneği sürelidir; kalıcı kullanım için ücretli plana geçin veya
+veritabanını süresiz ücretsiz bir sağlayıcıda (örn. Neon) tutup `DATABASE_URL`
+değerini elle girin.
+
+### Giriş
 
 `Seed__AdminPassword` ile açılan hesap sistemdeki **tek** giriş noktasıdır; kayıt ekranı
 yoktur. Diğer bütün hesaplar bu hesapla girip **Yönetim paneli → Kullanıcılar → Yeni
 kullanıcı** adımından açılır.
-
-### Sık karşılaşılan iki hata
-
-**Giriş ekranında "sunucuya ulaşılamıyor"** — `VITE_API_BASE_URL` derleme anında gömülür.
-Değeri sonradan girdiyseniz `gameflow-web` servisini yeniden dağıtmanız gerekir; yalnızca
-değişkeni kaydetmek yetmez.
-
-**Tarayıcı konsolunda CORS hatası** — `Cors__AllowedOrigins__0` arayüzün tam adresi
-olmalıdır: şema dahil (`https://`), sonunda `/` olmadan.
-
-**Ücretsiz plan uyarısı** — Render'da ücretsiz servisler hareketsizlik sonrası uykuya
-geçer; ilk istek 30–60 saniye sürebilir. Ücretsiz PostgreSQL örneği de süreli olduğundan
-kalıcı kullanım için ücretli plana geçilmelidir.
-
----
 
 ## ⚠️ Yayına almadan önce
 
