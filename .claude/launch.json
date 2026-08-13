@@ -9,6 +9,13 @@
       "cwd": "frontend"
     },
     {
+      "name": "web-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--", "--port", "4173", "--strictPort"],
+      "port": 4173,
+      "cwd": "frontend"
+    },
+    {
       "name": "api",
       "runtimeExecutable": "dotnet",
       "runtimeArgs": ["run", "--launch-profile", "http"],

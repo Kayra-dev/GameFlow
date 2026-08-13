@@ -22,13 +22,14 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 # Kök olmayan kullanıcı: konteyner ele geçirilse bile yetki sınırlı kalır.
-RUN adduser --disabled-password --gecos "" --uid 10001 gameflow \
-    && mkdir -p /app/uploads \
-    && chown -R gameflow:gameflow /app
+# .NET runtime imajı hazır bir 'app' kullanıcısıyla (UID 1654) gelir; ayrıca
+# kullanıcı oluşturulmaz çünkü bu imajda 'adduser' komutu bulunmaz ve derleme
+# o adımda kırılır.
+RUN mkdir -p /app/uploads && chown -R app:app /app
 
-COPY --from=build --chown=gameflow:gameflow /app ./
+COPY --from=build --chown=app:app /app ./
 
-USER gameflow
+USER app
 
 # Render/Railway PORT ortam değişkeni ile dinlenecek portu bildirir.
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
