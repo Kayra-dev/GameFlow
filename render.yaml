@@ -1,19 +1,15 @@
-# Render altyapı tanımı — API ve veritabanı.
+# Render altyapı tanımı — yalnızca API.
 #
 # Kullanım: bu depoyu Render'a bağlayın, "Blueprint" olarak bu dosyayı seçin.
-# Veritabanı ve API birlikte oluşturulur; bağlantı dizesi otomatik bağlanır.
 #
-# Arayüz burada değil, GitHub Pages'te yayınlanır:
+# Veritabanı burada tanımlı değil: Render'ın ücretsiz PostgreSQL örneği sürelidir
+# ve dolduğunda silinir. Veritabanı Neon'da (veya süresiz ücretsiz başka bir
+# sağlayıcıda) açılır ve bağlantı dizesi DATABASE_URL olarak elle girilir.
+#
+# Arayüz de burada değil, GitHub Pages'te yayınlanır:
 #   cd frontend && VITE_API_BASE_URL=https://... ./scripts/deploy-pages.sh
 
-databases:
-  - name: gameflow-db
-    databaseName: gameflow
-    user: gameflow
-    plan: free
-
 services:
-  # --------------------------------------------------------------------- API
   - type: web
     name: gameflow-api
     runtime: docker
@@ -22,31 +18,30 @@ services:
     dockerContext: ./backend
     healthCheckPath: /health
 
-    # Yüklenen dosyalar (görev ekleri, sohbet dosyaları) kalıcı diskte tutulur;
-    # aksi halde her dağıtımda silinirler.
-    disk:
-      name: gameflow-uploads
-      mountPath: /app/uploads
-      sizeGB: 1
+    # Kalıcı disk tanımlanmadı: Render'da diskler ücretli planlara özeldir ve
+    # ücretsiz planla birlikte bildirilirse blueprint reddedilir.
+    #
+    # Sonucu: görev ekleri ve sohbet dosyaları konteyner yeniden başlayana kadar
+    # yaşar, sonra kaybolur. Ücretsiz planda servis uykuya geçip uyandığında da
+    # yeniden başlar. Dosya eklerinin kalıcı olması gerekiyorsa ya ücretli plana
+    # geçilip buraya bir disk eklenmeli ya da dosyalar veritabanında/nesne
+    # deposunda tutulmalıdır.
 
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
 
-      # Render, PostgreSQL bağlantısını postgres:// URI biçiminde verir;
-      # ConnectionStringResolver bu biçimi Npgsql formatına çevirir.
+      # Neon'un verdiği postgres:// bağlantı dizesi. ConnectionStringResolver
+      # bu biçimi Npgsql formatına çevirir ve SSL'i zorunlu kılar.
       - key: DATABASE_URL
-        fromDatabase:
-          name: gameflow-db
-          property: connectionString
+        sync: false
 
       # JWT imzalama anahtarı Render tarafından üretilir ve panelde saklanır.
       - key: Jwt__Secret
         generateValue: true
 
-      # İlk yönetici hesabı. Şifre panelden elle girilir; depoda tutulmaz.
-      # Sistemde kayıt ekranı yoktur: diğer bütün hesaplar bu hesapla girilip
-      # Yönetim paneli → Kullanıcılar ekranından açılır.
+      # İlk yönetici hesabı. Sistemde kayıt ekranı yoktur: diğer bütün hesaplar
+      # bu hesapla girilip Yönetim paneli → Kullanıcılar ekranından açılır.
       - key: Seed__AdminEmail
         sync: false
       - key: Seed__AdminPassword
