@@ -155,8 +155,9 @@ Veritabanı, API ve arayüz tek bir blueprint'ten (`render.yaml`) doğar.
 git push -u origin main
 ```
 
-Depoda `.github/workflows/` altında CI tanımı bulunduğundan, kullandığınız kişisel erişim
-token'ında **`workflow`** izni açık olmalıdır; değilse GitHub push'u tamamen reddeder.
+Render dağıtımı GitHub Actions kullanmaz; depoda workflow tanımı yoktur. Sonradan bir
+workflow eklerseniz, kullandığınız kişisel erişim token'ında **`workflow`** izni açık
+olmalıdır — değilse GitHub, workflow dosyası içeren push'u tamamen reddeder.
 
 ### 2. Blueprint'i oluşturun
 
