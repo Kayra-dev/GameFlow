@@ -185,10 +185,22 @@ istekleri CORS nedeniyle engeller.
 Migration'lar uygulama açılışında otomatik uygulanır. Servis ayağa kalktığında
 `/health` adresi `200` dönmelidir.
 
-Ücretsiz planda servisler hareketsizlik sonrası uykuya geçer (ilk istek 30–60 sn) ve
-ücretsiz PostgreSQL örneği sürelidir; kalıcı kullanım için ücretli plana geçin veya
-veritabanını süresiz ücretsiz bir sağlayıcıda (örn. Neon) tutup `DATABASE_URL`
-değerini elle girin.
+### Tamamen ücretsiz kurulum
+
+Render'ın ücretsiz PostgreSQL örneği sürelidir ve dolduğunda silinir. Kalıcı ve ücretsiz
+bir kurulum için veritabanı [Neon](https://neon.tech)'da tutulur:
+
+1. Neon'da bir proje açın, verdiği `postgres://…` bağlantı dizesini kopyalayın.
+2. `render.yaml`'daki `databases:` bloğunu kaldırın (veya blueprint yerine yalnızca web
+   servisini oluşturun).
+3. Render'da `DATABASE_URL` değerini Neon'un bağlantı dizesiyle **elle** tanımlayın.
+
+`ConnectionStringResolver` `postgres://` biçimini Npgsql formatına çevirir ve SSL'i
+zorunlu kılar; Neon SSL istediği için ek ayar gerekmez.
+
+Ücretsiz web servisi 15 dakika hareketsizlikten sonra uyur, sonraki ilk istek 30–60 sn
+sürer. `docs/keep-alive.yml` bu gecikmeyi önleyen zamanlanmış bir GitHub Actions işidir;
+devreye alma adımları `docs/README.md` içinde.
 
 ### Giriş
 
