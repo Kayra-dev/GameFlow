@@ -41,6 +41,12 @@ public class ApplicationDbContext(
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
+    /// <summary>
+    /// Veritabanında saklanan dosya içerikleri. Yalnızca
+    /// <c>FileStorage:Provider = Database</c> iken doldurulur.
+    /// </summary>
+    public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
+
     /// <inheritdoc />
     public async Task<int> GetNextWorkItemNumberAsync(
         Guid projectId,

@@ -31,6 +31,15 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
 
+      # Kalıcı disk olmadığı için ekler veritabanında saklanır; diske yazılsalardı
+      # servis her uyanışında/yeniden dağıtımda kaybolurlardı.
+      - key: FileStorage__Provider
+        value: Database
+
+      # Dosyalar veritabanı satırı olarak tutulduğundan sınır düşük tutulur.
+      - key: FileStorage__MaxFileSizeBytes
+        value: '10485760' # 10 MB
+
       # Neon'un verdiği postgres:// bağlantı dizesi. ConnectionStringResolver
       # bu biçimi Npgsql formatına çevirir ve SSL'i zorunlu kılar.
       - key: DATABASE_URL

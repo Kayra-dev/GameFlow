@@ -46,13 +46,14 @@ public static class DependencyInjection
             provider.GetRequiredService<ApplicationDbContext>());
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
-        services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
+        // FileStorageOptions kaydı AddFileStorage içinde yapılır; sağlayıcıya göre
+        // taban yol da orada düzeltiliyor.
 
         AddPasswordHasher(services, configuration);
 
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
-        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        AddFileStorage(services, configuration);
         services.AddScoped<DatabaseInitializer>();
 
         // Anlık iletim varsayılan olarak etkisizdir; API katmanı SignalR hub'ını
@@ -67,6 +68,36 @@ public static class DependencyInjection
     /// Şifre saklama stratejisini seçer. Varsayılan BCrypt'tir; düz metin yalnızca
     /// geliştirme ortamında ve açıkça istendiğinde devreye girer.
     /// </summary>
+    /// <summary>
+    /// Dosya depolamayı yapılandırır. Veritabanı sağlayıcısı seçildiğinde istemcinin
+    /// dosyaya eriştiği taban yol da değişir: statik dosya kökü yerine dosya uç
+    /// noktası kullanılır. Ayar elle verilmemişse burada düzeltilir, aksi halde
+    /// üretilen bağlantılar 404 dönerdi.
+    /// </summary>
+    private static void AddFileStorage(IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(FileStorageOptions.SectionName);
+        var options = section.Get<FileStorageOptions>() ?? new FileStorageOptions();
+
+        if (options.Provider == FileStorageProvider.Database)
+        {
+            services.Configure<FileStorageOptions>(section);
+            services.PostConfigure<FileStorageOptions>(configured =>
+            {
+                if (configured.PublicBasePath.TrimEnd('/').EndsWith("/uploads", StringComparison.OrdinalIgnoreCase))
+                {
+                    configured.PublicBasePath = "/api/files";
+                }
+            });
+
+            services.AddScoped<IFileStorageService, DatabaseFileStorageService>();
+            return;
+        }
+
+        services.Configure<FileStorageOptions>(section);
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+    }
+
     private static void AddPasswordHasher(IServiceCollection services, IConfiguration configuration)
     {
         var security = configuration.GetSection(SecurityOptions.SectionName).Get<SecurityOptions>()

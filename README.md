@@ -202,6 +202,22 @@ zorunlu kılar; Neon SSL istediği için ek ayar gerekmez.
 sürer. `docs/keep-alive.yml` bu gecikmeyi önleyen zamanlanmış bir GitHub Actions işidir;
 devreye alma adımları `docs/README.md` içinde.
 
+**Dosya ekleri** — Ücretsiz planda kalıcı disk yoktur; konteynerin dosya sistemi her
+yeniden başlatmada sıfırlanır. Bu yüzden üretimde ekler diske değil veritabanına yazılır:
+
+```
+FileStorage__Provider=Database
+```
+
+Bu ayarla dosyalar `StoredFiles` tablosunda `bytea` olarak durur ve `/api/files/{ad}`
+üzerinden sunulur. Uç nokta kimlik doğrulaması istemez — tarayıcı `<img>` isteklerine
+`Authorization` başlığı ekleyemez — erişim tahmin edilemez GUID v7 dosya adıyla korunur;
+bu, diskten sunulan `/uploads` yolunun güvenlik davranışıyla aynıdır.
+
+Dosya içeriği belleğe alındığından boyut sınırı düşük tutulmalıdır
+(`FileStorage__MaxFileSizeBytes`, üretimde 10 MB). Kalıcı disk bağlanabilen bir ortamda
+`Provider` ayarını `Local` bırakmak daha verimlidir.
+
 ### Giriş
 
 `Seed__AdminPassword` ile açılan hesap sistemdeki **tek** giriş noktasıdır; kayıt ekranı

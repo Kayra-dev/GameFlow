@@ -103,26 +103,34 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(CorsExtensions.PolicyName);
 
-// Yüklenen dosyalar statik olarak sunulur. Kök dizin dışına çıkılamaz ve
-// bilinmeyen uzantılar indirilmek üzere sunulur (tarayıcıda çalıştırılmaz).
-var uploadRoot = Path.GetFullPath(
-    builder.Configuration["FileStorage:RootPath"] ?? "uploads",
-    builder.Environment.ContentRootPath);
+// Dosyalar veritabanında tutuluyorsa disk üzerinde sunulacak bir şey yoktur;
+// statik dosya katmanı yalnızca Local sağlayıcıda kurulur. Aksi halde
+// /api/files yolunu gölgeler ve boş bir dizin için gereksiz disk erişimi yapar.
+var storageProvider = builder.Configuration["FileStorage:Provider"];
 
-Directory.CreateDirectory(uploadRoot);
-
-app.UseStaticFiles(new StaticFileOptions
+if (!string.Equals(storageProvider, "Database", StringComparison.OrdinalIgnoreCase))
 {
-    FileProvider = new PhysicalFileProvider(uploadRoot),
-    RequestPath = builder.Configuration["FileStorage:PublicBasePath"] ?? "/uploads",
-    ServeUnknownFileTypes = false,
-    OnPrepareResponse = context =>
+    // Yüklenen dosyalar statik olarak sunulur. Kök dizin dışına çıkılamaz ve
+    // bilinmeyen uzantılar indirilmek üzere sunulur (tarayıcıda çalıştırılmaz).
+    var uploadRoot = Path.GetFullPath(
+        builder.Configuration["FileStorage:RootPath"] ?? "uploads",
+        builder.Environment.ContentRootPath);
+
+    Directory.CreateDirectory(uploadRoot);
+
+    app.UseStaticFiles(new StaticFileOptions
     {
-        // Yüklenen içerik hiçbir koşulda site bağlamında çalıştırılmamalı.
-        context.Context.Response.Headers.ContentDisposition = "inline";
-        context.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    }
-});
+        FileProvider = new PhysicalFileProvider(uploadRoot),
+        RequestPath = builder.Configuration["FileStorage:PublicBasePath"] ?? "/uploads",
+        ServeUnknownFileTypes = false,
+        OnPrepareResponse = context =>
+        {
+            // Yüklenen içerik hiçbir koşulda site bağlamında çalıştırılmamalı.
+            context.Context.Response.Headers.ContentDisposition = "inline";
+            context.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        }
+    });
+}
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
