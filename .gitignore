@@ -1,0 +1,41 @@
+# ---------- .NET ----------
+bin/
+obj/
+*.user
+*.suo
+artifacts/
+
+# ---------- Node / Vite ----------
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# ---------- Ortam dosyaları ----------
+# .env.example, .env.development ve .env.production depoda kalır; gerçek
+# sırlar içeren yerel dosyalar dışarıda tutulur.
+.env
+.env.*.local
+appsettings.Local.json
+
+# ---------- Yüklenen dosyalar ----------
+# Görev ekleri ve sohbet dosyaları kalıcı diskte tutulur, depoda değil.
+uploads/
+
+# ---------- IDE ----------
+.idea/
+.vs/
+.vscode/
+*.swp
+
+# ---------- Claude Code ----------
+.claude/settings.local.json
+
+# ---------- İşletim sistemi ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Loglar ----------
+logs/
+*.log

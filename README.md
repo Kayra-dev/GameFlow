@@ -1,0 +1,217 @@
+# GameFlow
+
+Oyun geliştirme ekipleri için gerçek zamanlı proje yönetim sistemi. Jira'dan ilham alır,
+oyun stüdyolarının iş akışına uyarlanmıştır: görsel/ses varlıkları, seviye tasarımı ve
+oynanış testleri birinci sınıf görev türleridir.
+
+**Giriş:** hesaplar yalnızca yönetici tarafından oluşturulur — kayıt ekranı yoktur.
+
+---
+
+## Hızlı başlangıç
+
+```bash
+./baslat.sh
+```
+
+Veritabanını kontrol eder, backend'i (5080) ve frontend'i (5173) başlatır, Ctrl+C ile
+ikisini birlikte kapatır.
+
+| | Adres |
+|---|---|
+| Arayüz | http://localhost:5173 |
+| API dokümanı | http://localhost:5080/docs |
+| PostgreSQL | `localhost:5434` · db `gameflow` · kullanıcı `gameflow` |
+
+**Varsayılan yönetici:** `admin@gameflow.dev` / `Admin!2345`
+(`backend/src/GameFlow.Api/appsettings.Development.json` → `Seed`)
+
+### Elle başlatma
+
+```bash
+cd backend/src/GameFlow.Api && ASPNETCORE_ENVIRONMENT=Development dotnet run --urls http://localhost:5080
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+---
+
+## Teknolojiler
+
+**Backend** — ASP.NET Core 10 · Entity Framework Core 10 (Code First) · PostgreSQL 17 ·
+Npgsql · JWT + refresh token rotasyonu · SignalR · FluentValidation · Serilog
+
+**Frontend** — React 19 · TypeScript · Vite · Tailwind CSS 4 · Radix UI · TanStack Query ·
+Zustand · Axios · dnd-kit · Recharts · date-fns
+
+---
+
+## Mimari
+
+```
+backend/src/
+├── GameFlow.Domain          Varlıklar, enum'lar, iş istisnaları — hiçbir şeye bağımlı değil
+├── GameFlow.Application     İş kuralları, DTO'lar, doğrulayıcılar, servis arayüzleri
+├── GameFlow.Infrastructure   EF Core, PostgreSQL, JWT, dosya depolama, şifre özetleme
+└── GameFlow.Api             Controller'lar, SignalR hub'ları, middleware, DI birleştirme
+
+frontend/src/
+├── components/ui            Tasarım sistemi parçaları (buton, kart, dialog…)
+├── components/layout        Uygulama kabuğu (sidebar, topbar)
+├── features/<modül>         Her modül kendi API katmanı + ekranlarıyla
+├── lib                      API istemcisi, sorgu anahtarları, tarih/format yardımcıları
+└── types                    Backend DTO'larıyla birebir eşleşen tipler
+```
+
+Bağımlılık yönü tek taraflıdır: `Api → Infrastructure → Application → Domain`.
+
+### Öne çıkan kararlar
+
+**Anahtarlar** — Sıralı GUID v7. Rastgele GUID'in aksine index parçalanmasına yol açmaz.
+
+**Mantıksal silme** — Ana varlıklar (kullanıcı, takım, proje, görev) silinmez, işaretlenir.
+Global query filter ile otomatik gizlenir; yorumlar, görev geçmişi ve denetim kayıtları korunur.
+
+**Kanban sıralaması** — `BoardOrder` kesirli tutulur. Sürükle-bırakta iki komşunun ortası
+alınır, yani **tek satır** güncellenir. Kayan nokta hassasiyeti tükenirse kolon otomatik
+yeniden dengelenir.
+
+**Sürükle-bırak** — Kartın taşınması ile açılması ayrı hedeflere bağlıdır: sol kenardaki
+tutamak taşır, gövde tıklanınca görev açılır. Kart sürüklenirken hedef kolonda gerçekten
+görünür (kolon yalnızca vurgulanmakla kalmaz); bırakma anındaki yerleşim sunucu yanıtı
+beklenmeden önbelleğe yazılır, istek reddedilirse kart eski yerine döner. Kolonlar
+daraltılabilir ve pano üstündeki filtreler kartları sunucuya gitmeden süzer.
+
+**Görev anahtarı** (`ODY-42`) — Sayaç `UPDATE ... RETURNING` ile tek atomik ifadede artırılır.
+Oku-artır-yaz yaklaşımı eş zamanlı iki oluşturmada aynı numarayı verirdi.
+
+**Takvim** — Görev son tarihleri ve sprint tarihleri ayrı tabloya kopyalanmaz; sorgu anında
+kaynaklarından türetilir. Bir görevin tarihi değişince senkronizasyon gerekmez. Takvimde
+yalnızca elle eklenen etkinlikler silinebilir; türetilmiş kayıtlar kaynak kayda bağlanır.
+
+**Toplantılar** — Ayrı bir modüldür (`features/meetings`) ve takvimde de görünür. Toplantı
+oluşturmak yönetici veya ilgili takım/projenin lideri olmayı gerektirir; katılımcılar
+"katılacağım / katılmayacağım" yanıtını kendileri verir.
+
+**Anlık iletim** — Uygulama katmanı SignalR'ı tanımaz; `IRealtimeNotifier` ve `IChatNotifier`
+arayüzleri üzerinden konuşur. SignalR devre dışıysa etkisiz uygulamalar kullanılır ve
+uygulama REST üzerinden çalışmaya devam eder.
+
+**Zaman** — Tüm `DateTime` alanları UTC'ye normalize edilir (`timestamptz`). Deadline
+hesapları sunucuda yapılır; istemci saatine güvenilmez.
+
+---
+
+## Roller
+
+| | Yetkiler |
+|---|---|
+| **Yönetici** | Kullanıcı/takım/proje oluşturma-silme, lider atama, duyuru yayınlama, toplantı düzenleme, tüm veriye erişim |
+| **Takım Lideri** | Görev ve sprint oluşturma, deadline belirleme, görev atama, takımını yönetme, toplantı düzenleme, lider sohbeti |
+| **Takım Üyesi** | Kendi görevlerini görme ve durumunu değiştirme, yorum, dosya, takvim etkinliği, toplantı yanıtı, takım sohbeti |
+
+**Hesap açma** — Kayıt ekranı yoktur. Yönetici, **Yönetim paneli → Kullanıcılar → Yeni
+kullanıcı** ile hesabı açar: ad, e-posta, geçici şifre, rol, unvan ve doğrudan ekleneceği
+takımlar. "İlk girişte şifre değiştirsin" açıkken kullanıcı geçici şifreyle girip kendi
+şifresini belirler. Aynı ekrandan şifre sıfırlanır, rol değiştirilir ve hesap kapatılır.
+
+Yetki iki katmanda denetlenir: controller'daki rol politikaları ("bu uç noktayı kim çağırabilir")
+ve `IPermissionService` ("tam olarak bu kayda dokunabilir mi").
+
+---
+
+## Test
+
+```bash
+cd backend && ./scripts/smoke-test.sh      # 176 REST testi
+cd backend && node scripts/signalr-test.mjs # 29 SignalR testi (iki canlı istemci)
+```
+
+Duman testi kimlik doğrulama, rol bazlı yetkilendirme, iş kuralları, doğrulama mesajları ve
+mantıksal silmeyi uçtan uca doğrular; oluşturduğu kayıtları sonunda temizler.
+SignalR testi iki gerçek WebSocket istemcisi bağlar ve mesajlaşma, düzenleme/silme yayını,
+"yazıyor" göstergesi, okundu bilgisi, çevrimiçi durum ve anlık bildirimi sınar.
+
+Veritabanını sıfırlamak için (yalnızca yönetici hesabı kalır):
+
+```bash
+psql -h localhost -p 5434 -U gameflow -d gameflow -f backend/scripts/clean-test-data.sql
+```
+
+---
+
+## Yayına alma
+
+Veritabanı, API ve arayüz tek bir blueprint'ten (`render.yaml`) doğar.
+
+> **Neden GitHub Pages değil?** Pages, ücretsiz planda yalnızca public depolarda
+> çalışır. Bu depo private olduğu için arayüz de Render'da yayınlanır.
+
+### 1. Depoyu GitHub'a gönderin
+
+```bash
+git push -u origin main
+```
+
+Depoda `.github/workflows/` altında CI tanımı bulunduğundan, kullandığınız kişisel erişim
+token'ında **`workflow`** izni açık olmalıdır; değilse GitHub push'u tamamen reddeder.
+
+### 2. Blueprint'i oluşturun
+
+Render → **New → Blueprint** → depoyu seçin. `render.yaml` üç servis tanımlar:
+`gameflow-db` (PostgreSQL), `gameflow-api` (Docker) ve `gameflow-web` (statik arayüz).
+
+`DATABASE_URL` ve `Jwt__Secret` otomatik üretilir. Panelden elle girilmesi gerekenler:
+
+| Servis | Değişken | Değer |
+|---|---|---|
+| `gameflow-api` | `Seed__AdminEmail` | İlk yönetici e-postası |
+| `gameflow-api` | `Seed__AdminPassword` | İlk yönetici şifresi |
+| `gameflow-api` | `Cors__AllowedOrigins__0` | Arayüz adresi, örn. `https://gameflow-web.onrender.com` |
+| `gameflow-web` | `VITE_API_BASE_URL` | API adresi, örn. `https://gameflow-api.onrender.com` |
+
+Adresler ancak servisler oluşturulduktan sonra belli olur; ikisini de girip her iki
+servisi yeniden dağıtın. Render ortam değişkenlerinde metin birleştirmeyi desteklemediği
+için bu iki alan blueprint'ten otomatik bağlanamaz.
+
+Migration'lar uygulama açılışında otomatik uygulanır. API ayağa kalktığında
+`https://gameflow-api.onrender.com/health` adresi `200` dönmelidir.
+
+### 3. Giriş yapın
+
+`Seed__AdminPassword` ile açılan hesap sistemdeki **tek** giriş noktasıdır; kayıt ekranı
+yoktur. Diğer bütün hesaplar bu hesapla girip **Yönetim paneli → Kullanıcılar → Yeni
+kullanıcı** adımından açılır.
+
+### Sık karşılaşılan iki hata
+
+**Giriş ekranında "sunucuya ulaşılamıyor"** — `VITE_API_BASE_URL` derleme anında gömülür.
+Değeri sonradan girdiyseniz `gameflow-web` servisini yeniden dağıtmanız gerekir; yalnızca
+değişkeni kaydetmek yetmez.
+
+**Tarayıcı konsolunda CORS hatası** — `Cors__AllowedOrigins__0` arayüzün tam adresi
+olmalıdır: şema dahil (`https://`), sonunda `/` olmadan.
+
+**Ücretsiz plan uyarısı** — Render'da ücretsiz servisler hareketsizlik sonrası uykuya
+geçer; ilk istek 30–60 saniye sürebilir. Ücretsiz PostgreSQL örneği de süreli olduğundan
+kalıcı kullanım için ücretli plana geçilmelidir.
+
+---
+
+## ⚠️ Yayına almadan önce
+
+`appsettings.Development.json` içinde şu ayar **açık**:
+
+```json
+"Security": { "StorePasswordsAsPlainText": true }
+```
+
+Bu, şifreleri veritabanına düz metin yazar ve **yalnızca geliştirme içindir**. Üretim
+ortamında açık bırakılırsa uygulama başlatılmaz (ortam denetimi devrede), ama yayına
+almadan önce:
+
+1. Ayarı `false` yapın veya kaldırın.
+2. Mevcut şifreleri sıfırlayın — düz metin kayıtlar `plain:` önekiyle durur ve BCrypt'e
+   kendiliğinden dönüşmez.

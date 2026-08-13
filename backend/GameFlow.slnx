@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GameFlow.Api/GameFlow.Api.csproj" />
+    <Project Path="src/GameFlow.Application/GameFlow.Application.csproj" />
+    <Project Path="src/GameFlow.Domain/GameFlow.Domain.csproj" />
+    <Project Path="src/GameFlow.Infrastructure/GameFlow.Infrastructure.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,91 @@
+# Render altyapı tanımı.
+#
+# Kullanım: bu depoyu Render'a bağlayın, "Blueprint" olarak bu dosyayı seçin.
+# Veritabanı, API ve arayüz birlikte oluşturulur; bağlantı dizesi otomatik bağlanır.
+#
+# Arayüz de burada yayınlanır (GitHub Pages değil): Pages ücretsiz planda yalnızca
+# public depolarda çalışır, bu depo ise private.
+
+databases:
+  - name: gameflow-db
+    databaseName: gameflow
+    user: gameflow
+    plan: free
+
+services:
+  # --------------------------------------------------------------------- API
+  - type: web
+    name: gameflow-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+
+    # Yüklenen dosyalar (görev ekleri, sohbet dosyaları) kalıcı diskte tutulur;
+    # aksi halde her dağıtımda silinirler.
+    disk:
+      name: gameflow-uploads
+      mountPath: /app/uploads
+      sizeGB: 1
+
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      # Render, PostgreSQL bağlantısını postgres:// URI biçiminde verir;
+      # ConnectionStringResolver bu biçimi Npgsql formatına çevirir.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gameflow-db
+          property: connectionString
+
+      # JWT imzalama anahtarı Render tarafından üretilir ve panelde saklanır.
+      - key: Jwt__Secret
+        generateValue: true
+
+      # İlk yönetici hesabı. Şifre panelden elle girilir; depoda tutulmaz.
+      # Sistemde kayıt ekranı yoktur: diğer bütün hesaplar bu hesapla girilip
+      # Yönetim paneli → Kullanıcılar ekranından açılır.
+      - key: Seed__AdminEmail
+        sync: false
+      - key: Seed__AdminPassword
+        sync: false
+
+      # Arayüzün yayın adresi (gameflow-web servisinin URL'i, örn.
+      # https://gameflow-web.onrender.com). Render env değişkenlerinde metin
+      # birleştirmeyi desteklemediği için şema ile birlikte elle girilir;
+      # eksikse tarayıcı API isteklerini CORS nedeniyle engeller.
+      - key: Cors__AllowedOrigins__0
+        sync: false
+
+  # ------------------------------------------------------------------ Arayüz
+  - type: web
+    name: gameflow-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+
+    # Tek sayfa uygulaması: /projeler gibi bir adrese doğrudan girildiğinde
+    # sunucuda o dosya yoktur. index.html'e yeniden yazılmazsa 404 döner ve
+    # yönlendirmeyi çözecek uygulama hiç yüklenmez.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    envVars:
+      # Vite 8 ve TypeScript 6 Node 20+ ister; Render'ın varsayılanı daha eski
+      # olabildiği için sürüm sabitlenir.
+      - key: NODE_VERSION
+        value: '22'
+
+      # API kök adresi, sonunda / olmadan (örn. https://gameflow-api.onrender.com).
+      - key: VITE_API_BASE_URL
+        sync: false
+
+      # Render arayüzü alan adının kökünden sunar; GitHub Pages'teki
+      # /<depo-adi>/ alt dizini burada geçerli değil.
+      - key: VITE_BASE_PATH
+        value: /
