@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Gamepad2, Loader2, LogIn } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation } from 'react-router-dom';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { wakeApi } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 
 import { useLogin } from './use-auth';
@@ -32,6 +33,13 @@ export function LoginPage() {
   const login = useLogin();
   const location = useLocation();
   const isAuthenticated = useAuthStore((state) => Boolean(state.accessToken && state.user));
+
+  // Sunucu ücretsiz planda uykuya geçiyor ve uyanması yaklaşık yarım dakika
+  // sürüyor. Ekran açılır açılmaz uyandırma başlatılır; kullanıcı bilgilerini
+  // yazarken bekleme büyük ölçüde biter.
+  useEffect(() => {
+    wakeApi();
+  }, []);
 
   const {
     register,
