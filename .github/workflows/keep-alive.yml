@@ -1,0 +1,26 @@
+# Render'ın ücretsiz planında servis 15 dakika hareketsizlikten sonra uykuya
+# geçer ve sonraki ilk istek 30-60 saniye sürer. Bu iş, sağlık ucunu düzenli
+# aralıklarla çağırarak servisi ayakta tutar.
+
+name: API'yi uyanık tut
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sağlık ucunu çağır
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "API_URL değişkeni tanımlı değil; atlanıyor."
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$API_URL/health" || echo 000)
+          echo "GET $API_URL/health -> $code"
+          [ "$code" = "200" ] || echo "Uyarı: beklenen 200 alınamadı."
